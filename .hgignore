@@ -2,3 +2,4 @@ syntax: glob
 *.pyc
 _*
 psbuff.ps1
+pshist.txt
