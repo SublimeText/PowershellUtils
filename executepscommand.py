@@ -6,7 +6,7 @@ import subprocess
 import codecs
 import base64
 
-PS_SCRIPT_TEMPLATE = u"""
+PS_SCRIPT_TEMPLATE = """
 $a = $args[0]
 [void] $(chcp 65001) # we want utf-8 returned from the console!
 # We receive a base64 encoded UTF16LE encoding from the command line.
@@ -14,7 +14,7 @@ $args[0] = ($a = [text.encoding]::Unicode.getstring([convert]::Frombase64String(
 # +++ Lines up to here inserted by ExecutePSCommand plugin for Sublime Text +++
 %s
 # +++ Lines from here inserted by ExecutePSCommand plugin Sublime Text+++
-"""
+""".decode('utf-8')
 
 class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
     """
