@@ -1,5 +1,5 @@
 syntax: glob
 *.pyc
-_*
+_*.txt
 psbuff.ps1
 pshist.txt
