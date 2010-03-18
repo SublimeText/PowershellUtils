@@ -1,0 +1,1 @@
+remove-item -path *.pyc,psbuff.ps1,pshist.txt
