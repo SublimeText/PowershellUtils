@@ -15,7 +15,7 @@ Usage:
     * Type in your PoSh command (or intrinsic, see below) and press the enter
       key.
     * Sublime Text selection's text is available to PoSh in $args[0] and, for
-      convenience, in $a too.
+      convenience, in $a too. It is recommended to use $a.
 
 Intrinsic commands:
     * !h will bring up the session's history of successful commands.
@@ -42,7 +42,7 @@ Caveats:
 
       ...or the equivalent, shorter version:
 
-      gps powershell|?{ $_.id -ne $pid }|stop-process # compact version
+      gps powershell|?{ $_.id -ne $pid }|stop-process
 
       TODO: This issue should probably be fixed.
 
