@@ -83,23 +83,8 @@ class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
                 f.write( (PoSh_SCRIPT_TEMPLATE % userPoShCmd) )
 
             for region in view.sel():
-                regionText = view.substr(region)
                 try:
-                    startupinfo = subprocess.STARTUPINFO()
-                    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                    PoShOutput, PoShErrInfo = subprocess.Popen(getPoShCmdLine(self.PoSh_BUFF_FILE, regionText),
-                                                            shell=False, # TODO: Needed?
-                                                            stdout=subprocess.PIPE,
-                                                            stderr=subprocess.PIPE,
-                                                            startupinfo=startupinfo).communicate()
-
-                    # We've changed the Windows console's default codepage in the PoSh script
-                    # by calling chcp 65001. Therefore, now we need to decode a UTF8 stream
-                    # with sinature.
-                    # Note: PoShErrInfo still gets encoded in the default codepage.
-                    PoShOutput, PoShErrInfo = ( PoShOutput.decode('utf_8_sig'),
-                                                PoShErrInfo.decode(getDOSPromptDefaultCodepage()), )
-
+                    PoShOutput, PoShErrInfo = filterThruPoSh(view.substr(region))
                 # Catches errors for any OS, not just Windows.
                 except EnvironmentError, e:
                     # TODO: This catches too many errors?
@@ -143,7 +128,7 @@ def getDOSPromptDefaultCodepage():
     codepage = "cp" + codepage[:-2].split(" ")[-1:][0].strip()
     return codepage
 
-def getPoShCmdLine(pathToScriptFile, argsToScript=""):
+def buildPoShCmdLine(pathToScriptFile, argsToScript=""):
     return ["powershell",
                         "-noprofile",
                         "-nologo",
@@ -159,3 +144,20 @@ def getPoShCmdLine(pathToScriptFile, argsToScript=""):
                         #   * Encode resulting bytestring in base64.
                         #   * Decode in the PoSh script.
                         base64.b64encode(argsToScript.encode("utf-16LE")),]
+
+def filterThruPoSh(text):
+    startupinfo = subprocess.STARTUPINFO()
+    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    PoShOutput, PoShErrInfo = subprocess.Popen(buildPoShCmdLine(getPathToPoShScript(), text),
+                                            shell=False, # TODO: Needed?
+                                            stdout=subprocess.PIPE,
+                                            stderr=subprocess.PIPE,
+                                            startupinfo=startupinfo).communicate()
+
+    # We've changed the Windows console's default codepage in the PoSh script
+    # by calling chcp 65001. Therefore, now we need to decode a UTF8 stream
+    # with sinature.
+    # Note: PoShErrInfo still gets encoded in the default codepage.
+    return ( PoShOutput.decode('utf_8_sig'),
+             PoShErrInfo.decode(getDOSPromptDefaultCodepage()), )
+
