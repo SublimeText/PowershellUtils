@@ -6,6 +6,14 @@ import subprocess
 import codecs
 import base64
 
+def getPathToPoShScript():
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(BASE_DIR, "psbuff.ps1")
+    # PS_HISTORY_FILE = os.path.join(BASE_DIR, "pshist.txt")
+
+# The PoSh pipeline provided by the user is merged with this template and the
+# resulting PoSh script is passed the text cotained in the selected region in
+# Sublime Text. If many regions exist, they are filtered one after the other.
 PS_SCRIPT_TEMPLATE = """
 $a = $args[0]
 [void] $(chcp 65001) # we want utf-8 returned from the console!
@@ -24,7 +32,7 @@ class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
 
     PS_HISTORY_MAX_LENGTH = 50
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    PS_BUFF_FILE = os.path.join(BASE_DIR, "psbuff.ps1")
+    PS_BUFF_FILE = getPathToPoShScript()
     PS_HISTORY_FILE = os.path.join(BASE_DIR, "pshist.txt")
 
     def __init__(self, *args, **kwargs):
@@ -69,36 +77,22 @@ class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
             # PoSh accepts a command as a base64 encoded string, but that way
             # we'd fill up the Windows console's buffer quicker and besides
             # any error info will (apparently) be returned as an XML string
-            PSScript = (PS_SCRIPT_TEMPLATE % PSCommand)
+            PSScriptContent = (PS_SCRIPT_TEMPLATE % PSCommand)
 
             # UTF8 signature required! If you don't use it, the sky will fall!
             # The Windows console won't interpret correctly a UTF8 encoding
             # without a signature.
             with codecs.open(self.PS_BUFF_FILE, 'w', 'utf_8_sig') as f:
-                f.write(PSScript)
+                f.write(PSScriptContent)
 
             for region in view.sel():
-
                 text = view.substr(region)
-                PSArgs = ["powershell",
-                                        "-noprofile",
-                                        "-nologo",
-                                        "-noninteractive",
-                                        "-executionpolicy", "remotesigned",
-                                        "-file", self.PS_BUFF_FILE,
-                                        # According to Popen, CreateProcess doesn't allow strings containing
-                                        # nulls as parameters. Besides, PoSh will get confused if we pass
-                                        # UTF8 strings as args to the script. Do the following instead:
-                                        #   * Encode parameter string in UTF16LE (NET Framework likes that).
-                                        #   * Encode resulting bytestring in base64.
-                                        #   * Decode in the PoSh script.
-                                        base64.b64encode(text.encode("utf-16LE")),] # $args to PS script
 
                 try:
                     startupinfo = subprocess.STARTUPINFO()
                     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                    PSOutput, PSErrInfo = subprocess.Popen(PSArgs,
-                                                            shell=False,
+                    PSOutput, PSErrInfo = subprocess.Popen(getPoShCmdLine(self.PS_BUFF_FILE, text),
+                                                            shell=False, # TODO: Needed?
                                                             stdout=subprocess.PIPE,
                                                             stderr=subprocess.PIPE,
                                                             startupinfo=startupinfo).communicate()
@@ -106,11 +100,9 @@ class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
                     # We've changed the Windows console's default codepage in the PoSh script
                     # by calling chcp 65001. Therefore, now we need to decode a UTF8 stream
                     # with sinature.
-                    # FIXME: PSErrInfo still gets encoded in the default codepage.
-                    # Retrieve codepage with Win API call and use that.
-                    codepage = subprocess.Popen(["chcp"], shell=True, stdout=subprocess.PIPE).communicate()[0]
-                    codepage = "cp" + codepage[:-2].split(" ")[-1:][0].strip()
-                    PSOutput, PSErrInfo = PSOutput.decode('utf_8_sig'), PSErrInfo.decode(codepage)
+                    # Note: PSErrInfo still gets encoded in the default codepage.
+                    PSOutput, PSErrInfo = (PSOutput.decode('utf_8_sig'),
+                                          PSErrInfo.decode(getDOSPromptDefaultCodepage()))
 
                 # Catches errors for any OS, not just Windows.
                 except EnvironmentError, e:
@@ -141,3 +133,27 @@ class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
         initialText = args[0] if args else self.lastFailedCommand
         w = view.window()
         w.showInputPanel("PS cmd:", initialText, onDone, None, None)
+
+def getDOSPromptDefaultCodepage():
+    # Retrieve codepage with Win API call and use that.
+    codepage = subprocess.Popen(["chcp"], shell=True, stdout=subprocess.PIPE).communicate()[0]
+    codepage = "cp" + codepage[:-2].split(" ")[-1:][0].strip()
+    return codepage
+
+def getPoShCmdLine(script, argsToScript=""):
+    return ["powershell",
+                        "-noprofile",
+                        "-nologo",
+                        "-noninteractive",
+                        # PoSh 2.0 lets you specify an ExecutionPolicy
+                        # from the cmdline, but 1.0 doesn't.
+                        "-executionpolicy", "remotesigned",
+                        "-file", script,
+                        # According to Popen, CreateProcess doesn't allow strings containing
+                        # nulls as parameters. Besides, PoSh will get confused if we pass
+                        # UTF8 strings as args to the script. Do the following instead:
+                        #   * Encode parameter string in UTF16LE (NET Framework likes that).
+                        #   * Encode resulting bytestring in base64.
+                        #   * Decode in the PoSh script.
+                        base64.b64encode(argsToScript.encode("utf-16LE")),]
+
