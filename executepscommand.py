@@ -38,8 +38,6 @@ class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
     """
 
     PoSh_HISTORY_MAX_LENGTH = 50
-    PoSh_BUFF_FILE = getPathToPoShScript()
-    PoSh_HISTORY_FILE = getPathToPoShHistoryDB()
 
     def __init__(self, *args, **kwargs):
         self.PSHistory = getPoShSavedHistory()
@@ -64,11 +62,14 @@ class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
                 sublime.statusMessage("Powershell command history is empty.")
             return True
         if userPoShCmd == '!mkh':
-            with open(self.PoSh_HISTORY_FILE, 'w') as f:
-                cmds = [(cmd + '\n').encode('utf-8') for cmd in self.PSHistory]
-                f.writelines(cmds)
-                sublime.statusMessage("Powershell command history saved.")
-            return True
+            try:
+                with open(getPathToPoShHistoryDB(), 'w') as f:
+                    cmds = [(cmd + '\n').encode('utf-8') for cmd in self.PSHistory]
+                    f.writelines(cmds)
+                    sublime.statusMessage("Powershell command history saved.")
+                return True
+            except IOError:
+                sublime.statusMessage("ERROR: Could not save Powershell command history.")
         else:
             return False
 
@@ -79,8 +80,11 @@ class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
             # UTF8 signature required! If you don't use it, the sky will fall!
             # The Windows console won't interpret correctly a UTF8 encoding
             # without a signature.
-            with codecs.open(self.PoSh_BUFF_FILE, 'w', 'utf_8_sig') as f:
-                f.write( (PoSh_SCRIPT_TEMPLATE % userPoShCmd) )
+            try:
+                with codecs.open(getPathToPoShScript(), 'w', 'utf_8_sig') as f:
+                    f.write( (PoSh_SCRIPT_TEMPLATE % userPoShCmd) )
+            except IOError:
+                sublime.statusMessage("ERROR: Could not access Powershell script file.")
 
             for region in view.sel():
                 try:
@@ -97,7 +101,6 @@ class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
                     print PoShErrInfo
                     sublime.statusMessage("PowerShell error.")
                     view.window().runCommand("showPanel console")
-                    # Later we save the user some typing.
                     self.lastFailedCommand = userPoShCmd
                     return
                 elif PoShOutput:
@@ -146,8 +149,10 @@ def buildPoShCmdLine(pathToScriptFile, argsToScript=""):
                         base64.b64encode(argsToScript.encode("utf-16LE")),]
 
 def filterThruPoSh(text):
+    # Hide the child process window.
     startupinfo = subprocess.STARTUPINFO()
     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
     PoShOutput, PoShErrInfo = subprocess.Popen(buildPoShCmdLine(getPathToPoShScript(), text),
                                             shell=False, # TODO: Needed?
                                             stdout=subprocess.PIPE,
@@ -160,4 +165,3 @@ def filterThruPoSh(text):
     # Note: PoShErrInfo still gets encoded in the default codepage.
     return ( PoShOutput.decode('utf_8_sig'),
              PoShErrInfo.decode(getDOSPromptDefaultCodepage()), )
-
