@@ -195,4 +195,3 @@ def filterThruPoSh(text):
     # Note: PoShErrInfo still gets encoded in the default codepage.
     return ( PoShOutput.decode("utf_8_sig"),
              PoShErrInfo.decode(getOEMCP()), )
-
