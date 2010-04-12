@@ -6,13 +6,16 @@ import codecs
 import base64
 import ctypes
 
-PATH_TO_THIS_FILE = os.path.dirname(os.path.abspath(__file__))
+joinToThisFileParent = lambda fileName: os.path.join(
+                                    os.path.dirname(os.path.abspath(__file__)),
+                                    fileName
+                                    )
 
 def getPathToPoShScript():
-    return os.path.join(PATH_TO_THIS_FILE, "psbuff.ps1")
+    return joinToThisFileParent("psbuff.ps1")
 
 def getPathToPoShHistoryDB():
-    return os.path.join(PATH_TO_THIS_FILE, "pshist.txt")
+    return joinToThisFileParent("pshist.txt")
 
 # The PoSh pipeline provided by the user is merged with this template and the
 # resulting PoSh script is passed the text cotained in the selected region in
