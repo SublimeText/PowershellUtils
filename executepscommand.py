@@ -1,4 +1,4 @@
-# coding=utf-8
+# -*- coding: utf-8 -*-
 from __future__ import with_statement
 import sublime, sublimeplugin
 import os.path
@@ -126,13 +126,11 @@ def getPoShSavedHistory():
     except IOError:
         return []
 
-def getConsoleCodePage():
-    # Retrieve codepage with Win API call and use that.
-    # TODO: This doesn't work...
-    # codepage = "cp%s" % str(ctypes.windll.kernel32.GetConsoleCP())
-    codepage = subprocess.Popen(["chcp"], shell=True, stdout=subprocess.PIPE).communicate()[0]
-    codepage = "cp" + codepage[:-2].split(" ")[-1:][0].strip()
-    return codepage
+def getOEMCP():
+    # Windows OEM/Ansi codepage mismatch issue.
+    # We need the OEM cp, because powershell is a console program.
+    codepage = ctypes.windll.kernel32.GetOEMCP()
+    return str(codepage)
 
 def buildPoShCmdLine(pathToScriptFile, argsToScript=""):
     return ["powershell",
@@ -167,5 +165,5 @@ def filterThruPoSh(text):
     # with sinature.
     # Note: PoShErrInfo still gets encoded in the default codepage.
     return ( PoShOutput.decode('utf_8_sig'),
-             PoShErrInfo.decode(getConsoleCodePage()), )
+             PoShErrInfo.decode(getOEMCP()), )
 
