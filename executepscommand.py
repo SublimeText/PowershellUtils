@@ -22,30 +22,35 @@ def getPathToPoShHistoryDB():
 # we'd fill up the Windows console's buffer quicker and besides
 # any error info will (apparently) be returned as an XML string
 PoSh_SCRIPT_TEMPLATE = """
-$consoleClass = @"
-using System;
-using System.Runtime.InteropServices;
-
-namespace PSWin32
-{
-    public class Console
-    {
-        [DllImport("kernel32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool SetConsoleCP(int wdCodePageID);
-
-        [DllImport("kernel32.dll")]
-        public static extern int GetOEMCP();
-
-        [DllImport("kernel32.dll")]
-        public static extern int GetConsoleCP();
-    }
-}
-"@
-add-type -typedefinition $consoleClass
+# this works
+[void] $(chcp 65001)
+# the following doesn't
+#$consoleClass = @"
+#using System;
+#using System.Runtime.InteropServices;
+#
+#namespace PSWin32
+#{
+#    public class Console
+#    {
+#        [DllImport("kernel32.dll")]
+#        [return: MarshalAs(UnmanagedType.Bool)]
+#        public static extern bool SetConsoleCP(int wdCodePageID);
+#
+#        [DllImport("kernel32.dll")]
+#        public static extern int GetOEMCP();
+#
+#        [DllImport("kernel32.dll")]
+#        public static extern int GetConsoleCP();
+#    }
+#}
+#"@
+#add-type -typedefinition $consoleClass
+#if (!([pswin32.console]::SetConsoleCP(65001))) { throw ("Couln't change Console's codepage.") }
+#[pswin32.console]::GetConsoleCP()
+#chcp
 $a = $args[0]
 # Change the console's codepage so that it outputs utf8 with signature.
-if (!([pswin32.console]::SetConsoleCP(65001))) { throw ("Couln't change Console's codepage.") }
 # We receive a base64 encoded UTF16LE encoding from the command line.
 $args[0] = ($a = [text.encoding]::Unicode.getstring([convert]::Frombase64String($a)))
 # +++ Lines up to here inserted by ExecutePSCommand plugin for Sublime Text +++
@@ -185,6 +190,6 @@ def filterThruPoSh(text):
     # We've changed the Windows console's default codepage in the PoSh script
     # Therefore, now we need to decode a UTF8 stream with sinature.
     # Note: PoShErrInfo still gets encoded in the default codepage.
-    return ( PoShOutput.decode("cp850"),
+    return ( PoShOutput.decode("utf_8_sig"),
              PoShErrInfo.decode(getOEMCP()), )
 
