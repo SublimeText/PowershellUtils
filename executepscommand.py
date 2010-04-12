@@ -5,6 +5,7 @@ import os.path
 import subprocess
 import codecs
 import base64
+import ctypes
 
 PATH_TO_THIS_FILE = os.path.dirname(os.path.abspath(__file__))
 
@@ -125,8 +126,10 @@ def getPoShSavedHistory():
     except IOError:
         return []
 
-def getDOSPromptDefaultCodepage():
+def getConsoleCodePage():
     # Retrieve codepage with Win API call and use that.
+    # TODO: This doesn't work...
+    # codepage = "cp%s" % str(ctypes.windll.kernel32.GetConsoleCP())
     codepage = subprocess.Popen(["chcp"], shell=True, stdout=subprocess.PIPE).communicate()[0]
     codepage = "cp" + codepage[:-2].split(" ")[-1:][0].strip()
     return codepage
@@ -164,4 +167,5 @@ def filterThruPoSh(text):
     # with sinature.
     # Note: PoShErrInfo still gets encoded in the default codepage.
     return ( PoShOutput.decode('utf_8_sig'),
-             PoShErrInfo.decode(getDOSPromptDefaultCodepage()), )
+             PoShErrInfo.decode(getConsoleCodePage()), )
+
