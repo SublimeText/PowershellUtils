@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from __future__ import with_statement
 import sublime, sublimeplugin
 import os.path
@@ -23,14 +22,37 @@ def getPathToPoShHistoryDB():
 # we'd fill up the Windows console's buffer quicker and besides
 # any error info will (apparently) be returned as an XML string
 PoSh_SCRIPT_TEMPLATE = """
+$consoleClass = @"
+using System;
+using System.Runtime.InteropServices;
+
+namespace PSWin32
+{
+    public class Console
+    {
+        [DllImport("kernel32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool SetConsoleCP(int wdCodePageID);
+
+        [DllImport("kernel32.dll")]
+        public static extern int GetOEMCP();
+
+        [DllImport("kernel32.dll")]
+        public static extern int GetConsoleCP();
+    }
+}
+"@
+add-type -typedefinition $consoleClass
 $a = $args[0]
-[void] $(chcp 65001) # we want utf-8 returned from the console!
+# Change the console's codepage so that it outputs utf8 with signature.
+if (!([pswin32.console]::SetConsoleCP(65001))) { throw ("Couln't change Console's codepage.") }
 # We receive a base64 encoded UTF16LE encoding from the command line.
 $args[0] = ($a = [text.encoding]::Unicode.getstring([convert]::Frombase64String($a)))
 # +++ Lines up to here inserted by ExecutePSCommand plugin for Sublime Text +++
 %s
 # +++ Lines from here inserted by ExecutePSCommand plugin Sublime Text+++
-""".decode('utf-8')
+"""
+
 
 class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
     """
@@ -109,6 +131,7 @@ class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
                     # NOTE 1: If you call Popen with shell=True and the length of PoShOutput
                     # exceeds the console's buffer width, the output will be split with
                     # extra, unexpected \r\n at the corresponding spots.
+                    # FIXME: The above happens regardless of Shell=True
                     # NOTE 2: PoSh can return XML too if you need it.
                     self._addToPSHistory(userPoShCmd)
                     # PS will insert \r\n at the end of every line--normalize.
@@ -160,9 +183,8 @@ def filterThruPoSh(text):
                                             startupinfo=startupinfo).communicate()
 
     # We've changed the Windows console's default codepage in the PoSh script
-    # by calling chcp 65001. Therefore, now we need to decode a UTF8 stream
-    # with sinature.
+    # Therefore, now we need to decode a UTF8 stream with sinature.
     # Note: PoShErrInfo still gets encoded in the default codepage.
-    return ( PoShOutput.decode('utf_8_sig'),
+    return ( PoShOutput.decode("cp850"),
              PoShErrInfo.decode(getOEMCP()), )
 
