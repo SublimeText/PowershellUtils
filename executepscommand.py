@@ -26,6 +26,7 @@ def getPathToPoShHistoryDB():
 # any error info will (apparently) be returned as an XML string
 PoSh_SCRIPT_TEMPLATE = """
 # this works
+# Change the console's codepage so that it outputs utf8 with signature.
 [void] $(chcp 65001)
 # the following doesn't
 #$consoleClass = @"
@@ -53,7 +54,6 @@ PoSh_SCRIPT_TEMPLATE = """
 #[pswin32.console]::GetConsoleCP()
 #chcp
 $a = $args[0]
-# Change the console's codepage so that it outputs utf8 with signature.
 # We receive a base64 encoded UTF16LE encoding from the command line.
 $args[0] = ($a = [text.encoding]::Unicode.getstring([convert]::Frombase64String($a)))
 # +++ Lines up to here inserted by ExecutePSCommand plugin for Sublime Text +++
