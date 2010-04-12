@@ -155,7 +155,6 @@ def filterThruPoSh(text):
     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
     PoShOutput, PoShErrInfo = subprocess.Popen(buildPoShCmdLine(getPathToPoShScript(), text),
-                                            shell=False, # TODO: Needed?
                                             stdout=subprocess.PIPE,
                                             stderr=subprocess.PIPE,
                                             startupinfo=startupinfo).communicate()
