@@ -116,6 +116,7 @@ class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
                     f.write( (PoSh_SCRIPT_TEMPLATE % userPoShCmd) )
             except IOError:
                 sublime.statusMessage("ERROR: Could not access Powershell script file.")
+                return
 
             for region in view.sel():
                 try:
