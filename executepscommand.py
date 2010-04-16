@@ -56,8 +56,9 @@ PoSh_SCRIPT_TEMPLATE = """
 $a = $args[0]
 # We receive a base64 encoded UTF16LE encoding from the command line.
 $args[0] = ($a = [text.encoding]::Unicode.getstring([convert]::Frombase64String($a)))
+$outFile = "%s"
 # +++ Lines up to here inserted by ExecutePSCommand plugin for Sublime Text +++
-%s
+%s | out-file $outFile -encoding utf8
 # +++ Lines from here inserted by ExecutePSCommand plugin Sublime Text+++
 """
 
@@ -113,7 +114,7 @@ class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
             # without a signature.
             try:
                 with codecs.open(getPathToPoShScript(), 'w', 'utf_8_sig') as f:
-                    f.write( (PoSh_SCRIPT_TEMPLATE % userPoShCmd) )
+                    f.write( PoSh_SCRIPT_TEMPLATE % (joinToThisFileParent("out.txt"), userPoShCmd) )
             except IOError:
                 sublime.statusMessage("ERROR: Could not access Powershell script file.")
                 return
@@ -135,16 +136,18 @@ class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
                     view.window().runCommand("showPanel console")
                     self.lastFailedCommand = userPoShCmd
                     return
-                elif PoShOutput:
-                    self.lastFailedCommand = ''
-                    # NOTE 1: If you call Popen with shell=True and the length of PoShOutput
-                    # exceeds the console's buffer width, the output will be split with
-                    # extra, unexpected \r\n at the corresponding spots.
-                    # FIXME: The above happens regardless of Shell=True
-                    # NOTE 2: PoSh can return XML too if you need it.
-                    self._addToPSHistory(userPoShCmd)
-                    # PS will insert \r\n at the end of every line--normalize.
-                    view.replace(region, PoShOutput[:-2].replace('\r\n', '\n'))
+                else:
+                    # TODO: add error handling
+                    f = open(joinToThisFileParent("out.txt"))
+                    txt = f.read().decode("utf8")
+                    f.close()
+                    f = open(joinToThisFileParent("out.txt"),"w")
+                    f.write("")
+                    f.close()
+                    if txt:
+                        self.lastFailedCommand = ''
+                        self._addToPSHistory(userPoShCmd)
+                        view.replace(region, txt[:-1])
 
         initialText = args[0] if args else self.lastFailedCommand
         view.window().showInputPanel("PoSh cmd:", initialText, onDone, None, None)
