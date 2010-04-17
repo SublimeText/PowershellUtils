@@ -3,16 +3,15 @@ import sublime, sublimeplugin
 import os.path
 import subprocess
 import codecs
-import base64
 import ctypes
-import glob
 from xml.etree.ElementTree import ElementTree
 
 # Things to remember:
 #   * encoding expected by Windows program (console/gui).
 #   * encoding expected by Powershell.
 
-# The PoSh pipeline provided by the user is merged with this template.
+# The PoSh pipeline provided by the user and the input values (regions)
+# are merged with this template.
 PoSh_SCRIPT_TEMPLATE = u"""
 $script:pathToOutPutFile ="$(split-path $MyInvocation.mycommand.path -parent)\\tmp\\out.txt"
 "<outputs>" | out-file $pathToOutPutFile -encoding utf8 -force
@@ -41,7 +40,6 @@ def getOutputs():
     tree = ElementTree()
     tree.parse(joinToThisFileParent("tmp/out.txt"))
     return [el.text for el in tree.findall("out")]
-
 
 def getPathToPoShScript():
     return joinToThisFileParent("psbuff.ps1")
