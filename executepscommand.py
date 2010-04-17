@@ -6,6 +6,7 @@ import codecs
 import base64
 import ctypes
 import glob
+from xml.etree.ElementTree import ElementTree
 
 # Things to remember:
 #   * encoding expected by Windows program (console/gui).
@@ -13,17 +14,16 @@ import glob
 
 # The PoSh pipeline provided by the user is merged with this template.
 PoSh_SCRIPT_TEMPLATE = u"""
-$script:i = 0
-get-item "$(split-path $MyInvocation.mycommand.path -parent)\\tmp\\in*.txt" | `
-    foreach-object {
-        $a = get-content -path $_
-        %s | out-file `
-                        "$(split-path $MyInvocation.mycommand.path -parent)\\tmp\\out${script:i}.txt" `
-                        -append `
-                        -encoding utf8 `
-                        -force
-        ++$script:i
-    }
+$script:pathToOutPutFile ="$(split-path $MyInvocation.mycommand.path -parent)\\tmp\\out.txt"
+"<outputs>" | out-file $pathToOutPutFile -encoding utf8 -force
+$script:regionTexts = %s
+$script:regionTexts | foreach-object {
+                        %s | foreach-object { "<out><![CDATA[$_]]></out>`n" } | out-file `
+                                                                        -filepath $pathToOutPutFile `
+                                                                        -append `
+                                                                        -encoding utf8
+}
+"</outputs>" | out-file $pathToOutPutFile -encoding utf8 -append -force
 """
 
 class CantAccessScriptFileError(Exception):
@@ -34,29 +34,14 @@ joinToThisFileParent = lambda fileName: os.path.join(
                                     fileName
                                     )
 
-def dumpRegions(rgs):
-    """Saves regions to disk."""
-
-    if not os.path.exists(joinToThisFileParent("tmp")):
-        os.mkdir(joinToThisFileParent("tmp"))
-
-    for f in glob.glob(joinToThisFileParent("tmp/*.txt")):
-        os.remove(f)
-
-    # PoSh will read these later, so encode with signature.
-    try:
-        for i, r in enumerate(rgs):
-            with open(joinToThisFileParent("tmp/in%d.txt" % i), "w") as f:
-                f.write(r.encode('utf_8_sig'))
-    except TypeError:
-        with open(joinToThisFileParent("tmp/in0.txt"), "w") as f:
-            f.write(rgs.encode('utf_8_sig'))
+def regionsToPoShArray(view, rgs):
+    return ",".join("'%s'" % view.substr(r).replace("'", "''") for r in rgs)
 
 def getOutputs():
-    for f in sorted(glob.glob(joinToThisFileParent("tmp/out*.txt"))):
-        # We probably get a signature from PoSh, but Python seems to
-        # deal with that behind the scenes.
-        yield open(f, "r").read().decode("utf8")[:-1]
+    tree = ElementTree()
+    tree.parse(joinToThisFileParent("tmp/out.txt"))
+    return [el.text for el in tree.findall("out")]
+
 
 def getPathToPoShScript():
     return joinToThisFileParent("psbuff.ps1")
@@ -112,10 +97,8 @@ class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
             # User doesn't want to filter anything.
             if self._parseIntrinsicCommands(userPoShCmd, view): return
 
-            dumpRegions(view.substr(r) for r in view.sel())
-
             try:
-                PoShOutput, PoShErrInfo = filterThruPoSh(userPoShCmd)
+                PoShOutput, PoShErrInfo = filterThruPoSh(regionsToPoShArray(view, view.sel()), userPoShCmd)
             except EnvironmentError, e:
                 sublime.errorMessage("Windows error. Possible causes:\n\n" +
                                       "* Is Powershell in your %PATH%?\n" +
@@ -160,9 +143,9 @@ def getOEMCP():
     codepage = ctypes.windll.kernel32.GetOEMCP()
     return str(codepage)
 
-def buildScript(userPoShCmd):
+def buildScript(values, userPoShCmd):
     with codecs.open(getPathToPoShScript(), 'w', 'utf_8_sig') as f:
-        f.write( PoSh_SCRIPT_TEMPLATE % (userPoShCmd) )
+        f.write( PoSh_SCRIPT_TEMPLATE % (values, userPoShCmd) )
 
 def buildPoShCmdLine():
     return ["powershell",
@@ -174,10 +157,10 @@ def buildPoShCmdLine():
                         "-executionpolicy", "remotesigned",
                         "-file", getPathToPoShScript(), ]
 
-def filterThruPoSh(userPoShCmd):
+def filterThruPoSh(values, userPoShCmd):
 
     try:
-        buildScript(userPoShCmd)
+        buildScript(values, userPoShCmd)
     except IOError:
         raise CantAccessScriptFileError
 

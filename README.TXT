@@ -14,7 +14,8 @@ Usage:
     * Assign a keybinding to "runExternalPSCommand".
     * Type in your PoSh command (or intrinsic, see below) and press the enter
       key.
-    * Sublime Text selection's text is available to PoSh in the $a variable.
+    * Sublime Text selection's text is available to PoSh in the $_ automatic
+      variable.
 
 Intrinsic commands:
     * !h will bring up the session's history of successful commands.
