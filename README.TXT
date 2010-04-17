@@ -14,8 +14,7 @@ Usage:
     * Assign a keybinding to "runExternalPSCommand".
     * Type in your PoSh command (or intrinsic, see below) and press the enter
       key.
-    * Sublime Text selection's text is available to PoSh in $args[0] and, for
-      convenience, in $a too. It is recommended to use $a.
+    * Sublime Text selection's text is available to PoSh in the $a variable.
 
 Intrinsic commands:
     * !h will bring up the session's history of successful commands.
@@ -26,11 +25,8 @@ Examples:
     * "$(date)"
     * "$pwd"
     * [environment]::GetFolderPath([environment+specialfolder]::MyDocuments)
-    * "!"*80; 1..100 | %{"Sublime Text rocks!"}; "!"*80
-    * "ПАССАЖИРАМ mañana Schloß`n"*2 # (for testing)
 
 Caveats:
-    * Filtering many regions is sloooooooooooooooooooow.
     * To start a PoSh subshell, do either `Start-Process powershell` or
       `start powershell` (cmd.exe's start program), but don't call PoSh
       directly because it will be launched in windowless mode and will block
