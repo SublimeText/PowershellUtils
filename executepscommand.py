@@ -7,40 +7,9 @@ import base64
 import ctypes
 import glob
 
-class CantAccessScriptFileError(Exception):
-    pass
-
-joinToThisFileParent = lambda fileName: os.path.join(
-                                    os.path.dirname(os.path.abspath(__file__)),
-                                    fileName
-                                    )
-
-def dumpRegions(rgs):
-    """Saves regions to disk."""
-
-    # Empty tmp dir.
-    for f in glob.glob(joinToThisFileParent("tmp/*.txt")):
-        os.remove(f)
-
-    try:
-        for i, r in enumerate(rgs):
-            f = open(joinToThisFileParent("tmp/in%d.txt" % i), "w")
-            f.write(r.encode("utf_8_sig"))
-            f.close()
-    except TypeError:
-        f = open(joinToThisFileParent("tmp/in0.txt"), "w")
-        f.write(rgs.encode("utf_8_sig"))
-        f.close()
-
-def getOutputs():
-    for f in sorted(glob.glob(joinToThisFileParent("tmp/out*.txt"))):
-        yield open(f, "r").read().decode("utf8")[:-1]
-
-def getPathToPoShScript():
-    return joinToThisFileParent("psbuff.ps1")
-
-def getPathToPoShHistoryDB():
-    return joinToThisFileParent("pshist.txt")
+# Things to remember:
+#   * encoding expected by Windows program (console/gui).
+#   * encoding expected by Powershell.
 
 # The PoSh pipeline provided by the user is merged with this template.
 PoSh_SCRIPT_TEMPLATE = u"""
@@ -56,6 +25,44 @@ get-item "$(split-path $MyInvocation.mycommand.path -parent)\\tmp\\in*.txt" | `
         ++$script:i
     }
 """
+
+class CantAccessScriptFileError(Exception):
+    pass
+
+joinToThisFileParent = lambda fileName: os.path.join(
+                                    os.path.dirname(os.path.abspath(__file__)),
+                                    fileName
+                                    )
+
+def dumpRegions(rgs):
+    """Saves regions to disk."""
+
+    if not os.path.exists(joinToThisFileParent("tmp")):
+        os.mkdir(joinToThisFileParent("tmp"))
+
+    for f in glob.glob(joinToThisFileParent("tmp/*.txt")):
+        os.remove(f)
+
+    # PoSh will read these later, so encode with signature.
+    try:
+        for i, r in enumerate(rgs):
+            with open(joinToThisFileParent("tmp/in%d.txt" % i), "w") as f:
+                f.write(r.encode('utf_8_sig'))
+    except TypeError:
+        with open(joinToThisFileParent("tmp/in0.txt"), "w") as f:
+            f.write(rgs.encode('utf_8_sig'))
+
+def getOutputs():
+    for f in sorted(glob.glob(joinToThisFileParent("tmp/out*.txt"))):
+        # We probably get a signature from PoSh, but Python seems to
+        # deal with that behind the scenes.
+        yield open(f, "r").read().decode("utf8")[:-1]
+
+def getPathToPoShScript():
+    return joinToThisFileParent("psbuff.ps1")
+
+def getPathToPoShHistoryDB():
+    return joinToThisFileParent("pshist.txt")
 
 
 class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
@@ -154,8 +161,6 @@ def getOEMCP():
     return str(codepage)
 
 def buildScript(userPoShCmd):
-    # The Windows console won't interpret correctly a UTF8 encoding
-    # without a signature.
     with codecs.open(getPathToPoShScript(), 'w', 'utf_8_sig') as f:
         f.write( PoSh_SCRIPT_TEMPLATE % (userPoShCmd) )
 
@@ -185,8 +190,5 @@ def filterThruPoSh(userPoShCmd):
                                             stderr=subprocess.PIPE,
                                             startupinfo=startupinfo).communicate()
 
-    # We've changed the Windows console's default codepage in the PoSh script
-    # Therefore, now we need to decode a UTF8 stream with sinature.
-    # Note: PoShErrInfo still gets encoded in the default codepage.
     return ( PoShOutput.decode(getOEMCP()),
              PoShErrInfo.decode(getOEMCP()), )
