@@ -7,6 +7,9 @@ import base64
 import ctypes
 import glob
 
+class CantAccessScriptFileError(Exception):
+    pass
+
 joinToThisFileParent = lambda fileName: os.path.join(
                                     os.path.dirname(os.path.abspath(__file__)),
                                     fileName
@@ -104,25 +107,19 @@ class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
 
             dumpRegions(view.substr(r) for r in view.sel())
 
-            # try:
-            #     # The Windows console won't interpret correctly a UTF8 encoding
-            #     # without a signature.
-            #     with codecs.open(getPathToPoShScript(), 'w', 'utf_8_sig') as f:
-            #         f.write( PoSh_SCRIPT_TEMPLATE % (userPoShCmd) )
-            # except IOError:
-            #     sublime.statusMessage("ERROR: Could not access Powershell script file.")
-            #     return
-
             try:
                 PoShOutput, PoShErrInfo = filterThruPoSh(userPoShCmd)
-            # Catches errors for any OS, not just Windows.
             except EnvironmentError, e:
-                # TODO: This catches too many errors?
                 sublime.errorMessage("Windows error. Possible causes:\n\n" +
                                       "* Is Powershell in your %PATH%?\n" +
                                       "* Use Start-Process to start ST from Powershell.\n\n%s" % e)
                 return
+            except CantAccessScriptFileError:
+                sublime.errorMessage("Cannot access script file.")
+                return
 
+            # Inform the user that something went wrong in his PoSh code or
+            # perform substitutions and do house-keeping.
             if PoShErrInfo:
                 print PoShErrInfo
                 sublime.statusMessage("PowerShell error.")
@@ -132,11 +129,12 @@ class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
             else:
                 self.lastFailedCommand = ''
                 self._addToPSHistory(userPoShCmd)
-                # cannot do zip(regs, outputs) because view.sel() maintains
+                # Cannot do zip(regs, outputs) because view.sel() maintains
                 # regions up-to-date if any of them changes.
                 for i, txt in enumerate(getOutputs()):
                     view.replace(view.sel()[i], txt)
 
+        # Open cmd line.
         initialText = args[0] if args else self.lastFailedCommand
         view.window().showInputPanel("PoSh cmd:", initialText, onDone, None, None)
 
@@ -155,6 +153,12 @@ def getOEMCP():
     codepage = ctypes.windll.kernel32.GetOEMCP()
     return str(codepage)
 
+def buildScript(userPoShCmd):
+    # The Windows console won't interpret correctly a UTF8 encoding
+    # without a signature.
+    with codecs.open(getPathToPoShScript(), 'w', 'utf_8_sig') as f:
+        f.write( PoSh_SCRIPT_TEMPLATE % (userPoShCmd) )
+
 def buildPoShCmdLine():
     return ["powershell",
                         "-noprofile",
@@ -166,14 +170,11 @@ def buildPoShCmdLine():
                         "-file", getPathToPoShScript(), ]
 
 def filterThruPoSh(userPoShCmd):
+
     try:
-        # The Windows console won't interpret correctly a UTF8 encoding
-        # without a signature.
-        with codecs.open(getPathToPoShScript(), 'w', 'utf_8_sig') as f:
-            f.write( PoSh_SCRIPT_TEMPLATE % (userPoShCmd) )
+        buildScript(userPoShCmd)
     except IOError:
-        sublime.statusMessage("ERROR: Could not access Powershell script file.")
-        return
+        raise CantAccessScriptFileError
 
     # Hide the child process window.
     startupinfo = subprocess.STARTUPINFO()
@@ -187,5 +188,5 @@ def filterThruPoSh(userPoShCmd):
     # We've changed the Windows console's default codepage in the PoSh script
     # Therefore, now we need to decode a UTF8 stream with sinature.
     # Note: PoShErrInfo still gets encoded in the default codepage.
-    return ( PoShOutput.decode("cp850"),
+    return ( PoShOutput.decode(getOEMCP()),
              PoShErrInfo.decode(getOEMCP()), )
