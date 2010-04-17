@@ -13,14 +13,15 @@ from xml.etree.ElementTree import ElementTree
 # The PoSh pipeline provided by the user and the input values (regions)
 # are merged with this template.
 PoSh_SCRIPT_TEMPLATE = u"""
+function collectData { "<out><![CDATA[$([string]::join('`n', $input))]]></out>`n" }
 $script:pathToOutPutFile ="$(split-path $MyInvocation.mycommand.path -parent)\\tmp\\out.txt"
 "<outputs>" | out-file $pathToOutPutFile -encoding utf8 -force
 $script:regionTexts = %s
 $script:regionTexts | foreach-object {
-                        %s | foreach-object { "<out><![CDATA[$_]]></out>`n" } | out-file `
-                                                                        -filepath $pathToOutPutFile `
-                                                                        -append `
-                                                                        -encoding utf8
+                        %s | out-string | collectData | out-file `
+                                                    -filepath $pathToOutPutFile `
+                                                    -append `
+                                                    -encoding utf8
 }
 "</outputs>" | out-file $pathToOutPutFile -encoding utf8 -append -force
 """
