@@ -14,6 +14,8 @@ joinToThisFileParent = lambda fileName: os.path.join(
 
 def dumpRegions(rgs):
     """Saves regions to disk."""
+
+    # Empty tmp dir.
     for f in glob.glob(joinToThisFileParent("tmp/*.txt")):
         os.remove(f)
 
@@ -97,22 +99,22 @@ class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
 
     def run(self, view, args):
         def onDone(userPoShCmd):
+            # User doesn't want to filter anything.
             if self._parseIntrinsicCommands(userPoShCmd, view): return
 
             dumpRegions(view.substr(r) for r in view.sel())
 
-            # UTF8 signature required! If you don't use it, the sky will fall!
-            # The Windows console won't interpret correctly a UTF8 encoding
-            # without a signature.
-            try:
-                with codecs.open(getPathToPoShScript(), 'w', 'utf_8_sig') as f:
-                    f.write( PoSh_SCRIPT_TEMPLATE % (userPoShCmd) )
-            except IOError:
-                sublime.statusMessage("ERROR: Could not access Powershell script file.")
-                return
+            # try:
+            #     # The Windows console won't interpret correctly a UTF8 encoding
+            #     # without a signature.
+            #     with codecs.open(getPathToPoShScript(), 'w', 'utf_8_sig') as f:
+            #         f.write( PoSh_SCRIPT_TEMPLATE % (userPoShCmd) )
+            # except IOError:
+            #     sublime.statusMessage("ERROR: Could not access Powershell script file.")
+            #     return
 
             try:
-                PoShOutput, PoShErrInfo = filterThruPoSh("")
+                PoShOutput, PoShErrInfo = filterThruPoSh(userPoShCmd)
             # Catches errors for any OS, not just Windows.
             except EnvironmentError, e:
                 # TODO: This catches too many errors?
@@ -153,7 +155,7 @@ def getOEMCP():
     codepage = ctypes.windll.kernel32.GetOEMCP()
     return str(codepage)
 
-def buildPoShCmdLine(pathToScriptFile, argsToScript=""):
+def buildPoShCmdLine():
     return ["powershell",
                         "-noprofile",
                         "-nologo",
@@ -161,14 +163,23 @@ def buildPoShCmdLine(pathToScriptFile, argsToScript=""):
                         # PoSh 2.0 lets you specify an ExecutionPolicy
                         # from the cmdline, but 1.0 doesn't.
                         "-executionpolicy", "remotesigned",
-                        "-file", pathToScriptFile, ]
+                        "-file", getPathToPoShScript(), ]
 
-def filterThruPoSh(text):
+def filterThruPoSh(userPoShCmd):
+    try:
+        # The Windows console won't interpret correctly a UTF8 encoding
+        # without a signature.
+        with codecs.open(getPathToPoShScript(), 'w', 'utf_8_sig') as f:
+            f.write( PoSh_SCRIPT_TEMPLATE % (userPoShCmd) )
+    except IOError:
+        sublime.statusMessage("ERROR: Could not access Powershell script file.")
+        return
+
     # Hide the child process window.
     startupinfo = subprocess.STARTUPINFO()
     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
-    PoShOutput, PoShErrInfo = subprocess.Popen(buildPoShCmdLine(getPathToPoShScript(), text),
+    PoShOutput, PoShErrInfo = subprocess.Popen(buildPoShCmdLine(),
                                             stdout=subprocess.PIPE,
                                             stderr=subprocess.PIPE,
                                             startupinfo=startupinfo).communicate()
