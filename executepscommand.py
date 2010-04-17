@@ -5,11 +5,31 @@ import subprocess
 import codecs
 import base64
 import ctypes
+import glob
 
 joinToThisFileParent = lambda fileName: os.path.join(
                                     os.path.dirname(os.path.abspath(__file__)),
                                     fileName
                                     )
+
+def dumpRegions(rgs):
+    """Saves regions to disk."""
+    for f in glob.glob(joinToThisFileParent("tmp/*.txt")):
+        os.remove(f)
+
+    try:
+        for i, r in enumerate(rgs):
+            f = open(joinToThisFileParent("tmp/in%d.txt" % i), "w")
+            f.write(r.encode("utf_8_sig"))
+            f.close()
+    except TypeError:
+        f = open(joinToThisFileParent("tmp/in0.txt"), "w")
+        f.write(rgs.encode("utf_8_sig"))
+        f.close()
+
+def getOutputs():
+    for f in sorted(glob.glob(joinToThisFileParent("tmp/out*.txt"))):
+        yield open(f, "r").read().decode("utf8")[:-1]
 
 def getPathToPoShScript():
     return joinToThisFileParent("psbuff.ps1")
@@ -17,49 +37,19 @@ def getPathToPoShScript():
 def getPathToPoShHistoryDB():
     return joinToThisFileParent("pshist.txt")
 
-# The PoSh pipeline provided by the user is merged with this template and the
-# resulting PoSh script is passed the text cotained in the selected region in
-# Sublime Text. If many regions exist, they are filtered one after the other.
-#
-# NOTE: PoSh accepts a command as a base64 encoded string, but that way
-# we'd fill up the Windows console's buffer quicker and besides
-# any error info will (apparently) be returned as an XML string
-PoSh_SCRIPT_TEMPLATE = """
-# this works
-# Change the console's codepage so that it outputs utf8 with signature.
-[void] $(chcp 65001)
-# the following doesn't
-#$consoleClass = @"
-#using System;
-#using System.Runtime.InteropServices;
-#
-#namespace PSWin32
-#{
-#    public class Console
-#    {
-#        [DllImport("kernel32.dll")]
-#        [return: MarshalAs(UnmanagedType.Bool)]
-#        public static extern bool SetConsoleCP(int wdCodePageID);
-#
-#        [DllImport("kernel32.dll")]
-#        public static extern int GetOEMCP();
-#
-#        [DllImport("kernel32.dll")]
-#        public static extern int GetConsoleCP();
-#    }
-#}
-#"@
-#add-type -typedefinition $consoleClass
-#if (!([pswin32.console]::SetConsoleCP(65001))) { throw ("Couln't change Console's codepage.") }
-#[pswin32.console]::GetConsoleCP()
-#chcp
-$a = $args[0]
-# We receive a base64 encoded UTF16LE encoding from the command line.
-$args[0] = ($a = [text.encoding]::Unicode.getstring([convert]::Frombase64String($a)))
-$outFile = "%s"
-# +++ Lines up to here inserted by ExecutePSCommand plugin for Sublime Text +++
-%s | out-file $outFile -encoding utf8
-# +++ Lines from here inserted by ExecutePSCommand plugin Sublime Text+++
+# The PoSh pipeline provided by the user is merged with this template.
+PoSh_SCRIPT_TEMPLATE = u"""
+$script:i = 0
+get-item "$(split-path $MyInvocation.mycommand.path -parent)\\tmp\\in*.txt" | `
+    foreach-object {
+        $a = get-content -path $_
+        %s | out-file `
+                        "$(split-path $MyInvocation.mycommand.path -parent)\\tmp\\out${script:i}.txt" `
+                        -append `
+                        -encoding utf8 `
+                        -force
+        ++$script:i
+    }
 """
 
 
@@ -109,45 +99,41 @@ class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
         def onDone(userPoShCmd):
             if self._parseIntrinsicCommands(userPoShCmd, view): return
 
+            dumpRegions(view.substr(r) for r in view.sel())
+
             # UTF8 signature required! If you don't use it, the sky will fall!
             # The Windows console won't interpret correctly a UTF8 encoding
             # without a signature.
             try:
                 with codecs.open(getPathToPoShScript(), 'w', 'utf_8_sig') as f:
-                    f.write( PoSh_SCRIPT_TEMPLATE % (joinToThisFileParent("out.txt"), userPoShCmd) )
+                    f.write( PoSh_SCRIPT_TEMPLATE % (userPoShCmd) )
             except IOError:
                 sublime.statusMessage("ERROR: Could not access Powershell script file.")
                 return
 
-            for region in view.sel():
-                try:
-                    PoShOutput, PoShErrInfo = filterThruPoSh(view.substr(region))
-                # Catches errors for any OS, not just Windows.
-                except EnvironmentError, e:
-                    # TODO: This catches too many errors?
-                    sublime.errorMessage("Windows error. Possible causes:\n\n" +
-                                          "* Is Powershell in your %PATH%?\n" +
-                                          "* Use Start-Process to start ST from Powershell.\n\n%s" % e)
-                    return
+            try:
+                PoShOutput, PoShErrInfo = filterThruPoSh("")
+            # Catches errors for any OS, not just Windows.
+            except EnvironmentError, e:
+                # TODO: This catches too many errors?
+                sublime.errorMessage("Windows error. Possible causes:\n\n" +
+                                      "* Is Powershell in your %PATH%?\n" +
+                                      "* Use Start-Process to start ST from Powershell.\n\n%s" % e)
+                return
 
-                if PoShErrInfo:
-                    print PoShErrInfo
-                    sublime.statusMessage("PowerShell error.")
-                    view.window().runCommand("showPanel console")
-                    self.lastFailedCommand = userPoShCmd
-                    return
-                else:
-                    # TODO: add error handling
-                    f = open(joinToThisFileParent("out.txt"))
-                    txt = f.read().decode("utf8")
-                    f.close()
-                    f = open(joinToThisFileParent("out.txt"),"w")
-                    f.write("")
-                    f.close()
-                    if txt:
-                        self.lastFailedCommand = ''
-                        self._addToPSHistory(userPoShCmd)
-                        view.replace(region, txt[:-1])
+            if PoShErrInfo:
+                print PoShErrInfo
+                sublime.statusMessage("PowerShell error.")
+                view.window().runCommand("showPanel console")
+                self.lastFailedCommand = userPoShCmd
+                return
+            else:
+                self.lastFailedCommand = ''
+                self._addToPSHistory(userPoShCmd)
+                # cannot do zip(regs, outputs) because view.sel() maintains
+                # regions up-to-date if any of them changes.
+                for i, txt in enumerate(getOutputs()):
+                    view.replace(view.sel()[i], txt)
 
         initialText = args[0] if args else self.lastFailedCommand
         view.window().showInputPanel("PoSh cmd:", initialText, onDone, None, None)
@@ -175,14 +161,7 @@ def buildPoShCmdLine(pathToScriptFile, argsToScript=""):
                         # PoSh 2.0 lets you specify an ExecutionPolicy
                         # from the cmdline, but 1.0 doesn't.
                         "-executionpolicy", "remotesigned",
-                        "-file", pathToScriptFile,
-                        # According to Popen, CreateProcess doesn't allow strings containing
-                        # nulls as parameters. Besides, PoSh will get confused if we pass
-                        # UTF8 strings as args to the script. Do the following instead:
-                        #   * Encode parameter string in UTF16LE (NET Framework likes that).
-                        #   * Encode resulting bytestring in base64.
-                        #   * Decode in the PoSh script.
-                        base64.b64encode(argsToScript.encode("utf-16LE")),]
+                        "-file", pathToScriptFile, ]
 
 def filterThruPoSh(text):
     # Hide the child process window.
@@ -197,5 +176,5 @@ def filterThruPoSh(text):
     # We've changed the Windows console's default codepage in the PoSh script
     # Therefore, now we need to decode a UTF8 stream with sinature.
     # Note: PoShErrInfo still gets encoded in the default codepage.
-    return ( PoShOutput.decode("utf_8_sig"),
+    return ( PoShOutput.decode("cp850"),
              PoShErrInfo.decode(getOEMCP()), )
