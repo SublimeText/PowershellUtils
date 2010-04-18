@@ -49,13 +49,9 @@ def getOutputs():
     return [el.text[:-1] for el in tree.findall("out")]
 
 def buildPathRelativeToThisPackage(leaf):
-    if DEBUG:
-        return os.path.join(sublime.packagesPath(),
-                            THIS_PACKAGE_DEV_NAME, leaf)
-
-    else:
-        return os.path.join(sublime.packagesPath(),
-                            THIS_PACKAGE_NAME, leaf)
+    return os.path.join(sublime.packagesPath(),
+                        THIS_PACKAGE_NAME if not DEBUG else THIS_PACKAGE_DEV_NAME,
+                        leaf)
 
 def getPathToPoShScript():
     return buildPathRelativeToThisPackage(POSH_SCRIPT_FILE_NAME)
