@@ -39,7 +39,7 @@ Caveats:
 
       ...or the equivalent, shorter version:
 
-      gps powershell|?{ $_.id -ne $pid }|stop-process
+      gps powershell|?{$_.id -ne $pid}|kill
 
       TODO: This issue should probably be fixed.
 
