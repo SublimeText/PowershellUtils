@@ -4,6 +4,7 @@ import os.path
 import subprocess
 import codecs
 import ctypes
+import tempfile
 from xml.etree.ElementTree import ElementTree
 
 # Things to remember:
@@ -14,7 +15,7 @@ from xml.etree.ElementTree import ElementTree
 # are merged with this template.
 PoSh_SCRIPT_TEMPLATE = u"""
 function collectData { "<out><![CDATA[$([string]::join('`n', $input))]]></out>`n" }
-$script:pathToOutPutFile ="$(split-path $MyInvocation.mycommand.path -parent)\\tmp\\out.txt"
+$script:pathToOutPutFile ="%s"
 "<outputs>" | out-file $pathToOutPutFile -encoding utf8 -force
 $script:regionTexts = %s
 $script:regionTexts | foreach-object {
@@ -26,27 +27,44 @@ $script:regionTexts | foreach-object {
 "</outputs>" | out-file $pathToOutPutFile -encoding utf8 -append -force
 """
 
+THIS_PACKAGE_NAME = "PowershellUtils"
+THIS_PACKAGE_DEV_NAME = "XXX" + THIS_PACKAGE_NAME
+POSH_SCRIPT_FILE_NAME = "psbuff.ps1"
+POSH_HISTORY_DB_NAME = "pshist.txt"
+OUTPUT_SINK_NAME = "out.txt"
+DEBUG = os.path.exists(sublime.packagesPath() + "/" + THIS_PACKAGE_DEV_NAME)
+
 class CantAccessScriptFileError(Exception):
     pass
 
-joinToThisFileParent = lambda fileName: os.path.join(
-                                    os.path.dirname(os.path.abspath(__file__)),
-                                    fileName
-                                    )
 
 def regionsToPoShArray(view, rgs):
+    # return a PoSh array: 'x', 'y', 'z' ... and escape single quotes like
+    # this : 'escaped ''sinqle quoted text'''
     return ",".join("'%s'" % view.substr(r).replace("'", "''") for r in rgs)
 
 def getOutputs():
     tree = ElementTree()
-    tree.parse(joinToThisFileParent("tmp/out.txt"))
-    return [el.text for el in tree.findall("out")]
+    tree.parse(getPathToOutputSink())
+    return [el.text[:-1] for el in tree.findall("out")]
+
+def buildPathRelativeToThisPackage(leaf):
+    if DEBUG:
+        return os.path.join(sublime.packagesPath(),
+                            THIS_PACKAGE_DEV_NAME, leaf)
+
+    else:
+        return os.path.join(sublime.packagesPath(),
+                            THIS_PACKAGE_NAME, leaf)
 
 def getPathToPoShScript():
-    return joinToThisFileParent("psbuff.ps1")
+    return buildPathRelativeToThisPackage(POSH_SCRIPT_FILE_NAME)
 
 def getPathToPoShHistoryDB():
-    return joinToThisFileParent("pshist.txt")
+    return buildPathRelativeToThisPackage(POSH_HISTORY_DB_NAME)
+
+def getPathToOutputSink():
+    return buildPathRelativeToThisPackage(OUTPUT_SINK_NAME)
 
 
 class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
@@ -144,7 +162,7 @@ def getOEMCP():
 
 def buildScript(values, userPoShCmd):
     with codecs.open(getPathToPoShScript(), 'w', 'utf_8_sig') as f:
-        f.write( PoSh_SCRIPT_TEMPLATE % (values, userPoShCmd) )
+        f.write( PoSh_SCRIPT_TEMPLATE % (getPathToOutputSink(), values, userPoShCmd) )
 
 def buildPoShCmdLine():
     return ["powershell",

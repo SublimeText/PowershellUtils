@@ -3,4 +3,4 @@ syntax: glob
 _*.txt
 psbuff.ps1
 pshist.txt
-tmp/*
+out.txt
