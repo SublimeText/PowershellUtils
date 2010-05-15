@@ -7,7 +7,7 @@ This plugin provides an interface to filter text through a Windows Powershell pi
 Requirements
 ************
 
-* ``Windows Powershell v2.``
+- **Windows Powershell v2.**
   Windows Powershell v2 is preinstalled in Windows 7 and later and it's available for previous versions of Windows too.
 
 Side effects
