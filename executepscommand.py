@@ -7,10 +7,6 @@ import ctypes
 import tempfile
 from xml.etree.ElementTree import ElementTree
 
-# Things to remember:
-#   * encoding expected by Windows program (console/gui).
-#   * encoding expected by Powershell.
-
 # The PoSh pipeline provided by the user and the input values (regions)
 # are merged with this template.
 PoSh_SCRIPT_TEMPLATE = u"""
