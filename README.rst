@@ -47,9 +47,9 @@ Using the intrinsic commands
 
 This plugin accepts the following `intrinsic` commands:
 
-    `!mkh`
+    ``!mkh``
         Saves the session's history of commands to a file.
-    `!h`
+    ``!h``
         Brings up the history of commands so you can choose one and run it again.
 
 Examples
