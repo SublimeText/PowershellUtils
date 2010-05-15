@@ -45,7 +45,7 @@ The generated output will be inserted into each region in turn.
 Using the intrinsic commands
 ----------------------------
 
-The following commands have a special meaning for this pluginintrinsic:
+The following commands have a special meaning for this plugin:
 
     ``!mkh``
         Saves the session's history of commands to a file.
