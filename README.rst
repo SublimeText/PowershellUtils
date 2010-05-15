@@ -7,7 +7,7 @@ This plugin provides an interface to filter text through a Windows Powershell pi
 Requirements
 ************
 
-* Windows Powershell v2
+* ``Windows Powershell v2.``
   Windows Powershell v2 is preinstalled in Windows 7 and later and it's available for previous versions of Windows too.
 
 Side effects
@@ -34,7 +34,7 @@ Using The Windows Powershell Pipeline
 
 All the currently selected regions in Sublime Text will be piped into your command. You can access each of this regions in turn through the ``$_`` automatic variable.
 
-Roughly, this is what goes on behind the scenes:
+Roughly, this is what goes on behind the scenes::
 
     reg1..regN | <your command> | out-string
 
@@ -56,15 +56,15 @@ Examples
 ``[environment]::GetFolderPath([environment+specialfolder]::MyDocuments)``
     Replaces each region's content with the path to the user's ``My Documents`` folder.
 ``0..6|%{ "$($_+1) $([dayofweek]$_)" }``
-    Replaces the region's content with the enumerated week days.
+    Replaces each region's content with the enumerated week days.
 
 Caveats
 *******
 
-To start a Windows Powershell shell, do either `Start-Process powershell` or `cmd /k start powershell`, but don't call Windows Powershell directly because it will be launched in windowless mode and will block Sublime Text forever. Should this happen to you, you can execute the following Windows Powershell command from an actual Windows Powershell prompt to terminate all Windows Powershell processes except for the current session::
+To start a Windows Powershell shell, do either ``Start-Process powershell`` or ``cmd /k start powershell``, but don't call Windows Powershell directly because it will be launched in windowless mode and will block Sublime Text forever. Should this happen to you, you can execute the following command from an actual Windows Powershell prompt to terminate all Windows Powershell processes except for the current session::
 
-Get-Process powershell | Where-Object { $_.Id -ne $PID } | Stop-Process
+    Get-Process powershell | Where-Object { $_.Id -ne $PID } | Stop-Process
 
 Alternatively, you can use a shorter version::
 
-gps powershell|?{$_.id -ne $pid}|kill
+    gps powershell|?{$_.id -ne $pid}|kill
