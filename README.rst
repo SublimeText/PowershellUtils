@@ -42,6 +42,16 @@ You can ignore the piped content and treat your command as the start point of th
 
 The generated output will be inserted into each region in turn.
 
+Using the intrinsic commands
+----------------------------
+
+This plugin accepts the following `intrinsic` commands:
+
+    `!mkh`
+        Saves the session's history of commands to a file.
+    `!h`
+        Brings up the history of commands so you can choose one and run it again.
+
 Examples
 ********
 
