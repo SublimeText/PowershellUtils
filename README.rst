@@ -8,7 +8,7 @@ Requirements
 ************
 
 - **Windows Powershell v2.**
-  Windows Powershell v2 is preinstalled in Windows 7 and later and it's available for previous versions of Windows too.
+  Windows Powershell v2 is preinstalled in Windows 7 and later and it's available for previous versions of Windows too under the name `Windows Management Framework`.
 
 Side effects
 ************
