@@ -135,7 +135,8 @@ class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
 
         # Open cmd line.
         initialText = args[0] if args else self.lastFailedCommand
-        view.window().showInputPanel("PoSh cmd:", initialText, onDone, None, None)
+        inputPanel = view.window().showInputPanel("PoSh cmd:", initialText, onDone, None, None)
+        # inputPanel.options().set("syntax", "Packages/XXXPowershell3/PowershellSyntax.tmLanguage")
 
 def getPoShSavedHistory():
     # If the command history file doesn't exist now, it will be created when
