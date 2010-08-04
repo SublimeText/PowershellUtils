@@ -23,9 +23,17 @@ class SimpleTestCase(unittest.TestCase):
 
         self.assertEquals(expected, actual)
 
-    def test_buildPathRelativeToThisPackage(self):
-        expected = r"XXX\PowershellUtils\leaf"
-        actual = executepscommand.buildPathRelativeToThisPackage("leaf")
+    def test_getThisPackageNameNonDebug(self):
+        executepscommand.DEBUG = True
+        expected = "XXXPowershellUtils"
+        actual = executepscommand.getThisPackageName()
+
+        self.assertEquals(expected, actual)
+
+    def test_getThisPackageNameNonDebug(self):
+        executepscommand.DEBUG = False
+        expected = "PowershellUtils"
+        actual = executepscommand.getThisPackageName()
 
         self.assertEquals(expected, actual)
 
@@ -42,7 +50,7 @@ class SimpleTestCase(unittest.TestCase):
         self.assertEquals(expected, actual)
 
     def test_getPathToOutputSink(self):
-        expected = r"XXX\PowershellUtils\out.txt"
+        expected = r"XXX\PowershellUtils\out.xml"
         actual = executepscommand.getPathToOutputSink()
 
         self.assertEquals(expected, actual)

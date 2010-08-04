@@ -1,19 +1,17 @@
+def packagesPath():
+    return "?????"
 
 class View(object):
     pass
 
-
-class RegionSet(object):
+class Window(object):
     pass
-
 
 class Region(object):
     pass
 
-
-class Window(object):
+class RegionSet(object):
     pass
-
 
 class Options(object):
     pass

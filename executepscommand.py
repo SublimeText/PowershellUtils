@@ -5,6 +5,7 @@ import subprocess
 import codecs
 import ctypes
 import tempfile
+import sublimepath
 from xml.etree.ElementTree import ElementTree
 
 # The PoSh pipeline provided by the user and the input values (regions)
@@ -27,16 +28,19 @@ THIS_PACKAGE_NAME = "PowershellUtils"
 THIS_PACKAGE_DEV_NAME = "XXX" + THIS_PACKAGE_NAME
 POSH_SCRIPT_FILE_NAME = "psbuff.ps1"
 POSH_HISTORY_DB_NAME = "pshist.txt"
-OUTPUT_SINK_NAME = "out.txt"
+OUTPUT_SINK_NAME = "out.xml"
 DEBUG = os.path.exists(sublime.packagesPath() + "/" + THIS_PACKAGE_DEV_NAME)
+
 
 class CantAccessScriptFileError(Exception):
     pass
 
 
 def regionsToPoShArray(view, rgs):
-    # return a PoSh array: 'x', 'y', 'z' ... and escape single quotes like
-    # this : 'escaped ''sinqle quoted text'''
+    """
+    Return a PoSh array: 'x', 'y', 'z' ... and escape single quotes like
+    this : 'escaped ''sinqle quoted text'''
+    """
     return ",".join("'%s'" % view.substr(r).replace("'", "''") for r in rgs)
 
 def getOutputs():
@@ -44,19 +48,21 @@ def getOutputs():
     tree.parse(getPathToOutputSink())
     return [el.text[:-1] for el in tree.findall("out")]
 
-def buildPathRelativeToThisPackage(leaf):
-    return os.path.join(sublime.packagesPath(),
-                        THIS_PACKAGE_NAME if not DEBUG else THIS_PACKAGE_DEV_NAME,
-                        leaf)
+def getThisPackageName():
+    """
+    Name varies depending on the name of the folder containing this code.
+    TODO: Is __name__ accurate in Sublime? __file__ doesn't seem to be.
+    """
+    return THIS_PACKAGE_NAME if not DEBUG else THIS_PACKAGE_DEV_NAME
 
 def getPathToPoShScript():
-    return buildPathRelativeToThisPackage(POSH_SCRIPT_FILE_NAME)
+    return sublimepath.rootAtPackagesDir(getThisPackageName(), POSH_SCRIPT_FILE_NAME)
 
 def getPathToPoShHistoryDB():
-    return buildPathRelativeToThisPackage(POSH_HISTORY_DB_NAME)
+    return sublimepath.rootAtPackagesDir(getThisPackageName(), POSH_HISTORY_DB_NAME)
 
 def getPathToOutputSink():
-    return buildPathRelativeToThisPackage(OUTPUT_SINK_NAME)
+    return sublimepath.rootAtPackagesDir(getThisPackageName(), OUTPUT_SINK_NAME)
 
 
 class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
