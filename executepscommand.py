@@ -65,6 +65,54 @@ def getPathToPoShHistoryDB():
 def getPathToOutputSink():
     return sublimepath.rootAtPackagesDir(getThisPackageName(), OUTPUT_SINK_NAME)
 
+def getPoShSavedHistory():
+    # If the command history file doesn't exist now, it will be created when
+    # the user chooses to persist the current history for the first time.
+    try:
+        with open(getPathToPoShHistoryDB(), 'r') as f:
+            return [command[:-1].decode('utf-8') for command in f.readlines()]
+    except IOError:
+        return []
+
+def getOEMCP():
+    # Windows OEM/Ansi codepage mismatch issue.
+    # We need the OEM cp, because powershell is a console program.
+    codepage = ctypes.windll.kernel32.GetOEMCP()
+    return str(codepage)
+
+def buildScript(values, userPoShCmd):
+    with codecs.open(getPathToPoShScript(), 'w', 'utf_8_sig') as f:
+        f.write( PoSh_SCRIPT_TEMPLATE % (getPathToOutputSink(), values, userPoShCmd) )
+
+def buildPoShCmdLine():
+    return ["powershell",
+                        "-noprofile",
+                        "-nologo",
+                        "-noninteractive",
+                        # PoSh 2.0 lets you specify an ExecutionPolicy
+                        # from the cmdline, but 1.0 doesn't.
+                        "-executionpolicy", "remotesigned",
+                        "-file", getPathToPoShScript(), ]
+
+def filterThruPoSh(values, userPoShCmd):
+
+    try:
+        buildScript(values, userPoShCmd)
+    except IOError:
+        raise CantAccessScriptFileError
+
+    # Hide the child process window.
+    startupinfo = subprocess.STARTUPINFO()
+    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
+    PoShOutput, PoShErrInfo = subprocess.Popen(buildPoShCmdLine(),
+                                            stdout=subprocess.PIPE,
+                                            stderr=subprocess.PIPE,
+                                            startupinfo=startupinfo).communicate()
+
+    return ( PoShOutput.decode(getOEMCP()),
+             PoShErrInfo.decode(getOEMCP()), )
+
 
 class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
     """
@@ -115,7 +163,7 @@ class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
         inputPanel = view.window().showInputPanel("PoSh cmd:", initialText, functools.partial(self.onDone, view), None, None)
 
     def onDone(self, view, userPoShCmd):
-        # User doesn't want to filter anything.
+        # Exit if user doesn't actually want to filter anything.
         if self._parseIntrinsicCommands(userPoShCmd, view): return
 
         try:
@@ -144,51 +192,3 @@ class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
             # regions up-to-date if any of them changes.
             for i, txt in enumerate(getOutputs()):
                 view.replace(view.sel()[i], txt)
-
-def getPoShSavedHistory():
-    # If the command history file doesn't exist now, it will be created when
-    # the user chooses to persist the current history for the first time.
-    try:
-        with open(getPathToPoShHistoryDB(), 'r') as f:
-            return [command[:-1].decode('utf-8') for command in f.readlines()]
-    except IOError:
-        return []
-
-def getOEMCP():
-    # Windows OEM/Ansi codepage mismatch issue.
-    # We need the OEM cp, because powershell is a console program.
-    codepage = ctypes.windll.kernel32.GetOEMCP()
-    return str(codepage)
-
-def buildScript(values, userPoShCmd):
-    with codecs.open(getPathToPoShScript(), 'w', 'utf_8_sig') as f:
-        f.write( PoSh_SCRIPT_TEMPLATE % (getPathToOutputSink(), values, userPoShCmd) )
-
-def buildPoShCmdLine():
-    return ["powershell",
-                        "-noprofile",
-                        "-nologo",
-                        "-noninteractive",
-                        # PoSh 2.0 lets you specify an ExecutionPolicy
-                        # from the cmdline, but 1.0 doesn't.
-                        "-executionpolicy", "remotesigned",
-                        "-file", getPathToPoShScript(), ]
-
-def filterThruPoSh(values, userPoShCmd):
-
-    try:
-        buildScript(values, userPoShCmd)
-    except IOError:
-        raise CantAccessScriptFileError
-
-    # Hide the child process window.
-    startupinfo = subprocess.STARTUPINFO()
-    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-
-    PoShOutput, PoShErrInfo = subprocess.Popen(buildPoShCmdLine(),
-                                            stdout=subprocess.PIPE,
-                                            stderr=subprocess.PIPE,
-                                            startupinfo=startupinfo).communicate()
-
-    return ( PoShOutput.decode(getOEMCP()),
-             PoShErrInfo.decode(getOEMCP()), )

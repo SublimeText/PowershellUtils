@@ -1,4 +1,5 @@
 syntax: glob
+
 tmp/*
 *.pyc
 _*.txt
