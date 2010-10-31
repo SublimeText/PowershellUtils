@@ -158,6 +158,10 @@ class RunExternalPSCommandCommand(sublimeplugin.TextCommand):
 
     def run(self, view, args):
 
+        if args and len(args) > 1:
+            self.onDone(view, args[1])
+            return
+
         # Open cmd line.
         initialText = args[0] if args else self.lastFailedCommand
         inputPanel = view.window().showInputPanel("PoSh cmd:", initialText, functools.partial(self.onDone, view), None, None)
