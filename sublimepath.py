@@ -4,4 +4,4 @@ import sublime
 import os
 
 def rootAtPackagesDir(*leaf):
-    return os.path.join(sublime.packagesPath(), *leaf)
+    return os.path.join(sublime.packages_path(), *leaf)
