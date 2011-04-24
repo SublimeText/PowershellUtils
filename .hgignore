@@ -6,3 +6,8 @@ _*.txt
 psbuff.ps1
 pshist.txt
 out.xml
+MANIFEST
+
+*.sublime-project
+
+dist/

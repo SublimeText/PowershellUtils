@@ -25,9 +25,9 @@ push-location $root
 	remove-item ".\MANIFEST" -erroraction silentlycontinue
 	& ".\setup.py" "spa"
 
-	(get-item ".\dist\UberSelection.sublime-package").fullname | clip.exe
+	(get-item ".\dist\PowershellUtils.sublime-package").fullname | clip.exe
 pop-location
 
 if (-not $DontUpload) {
-	start-process "https://bitbucket.org/guillermooo/uberselection/downloads"
+	start-process "https://bitbucket.org/guillermooo/powershellutils/downloads"
 }

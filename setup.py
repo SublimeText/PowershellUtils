@@ -580,7 +580,7 @@ class test(Command):
 
 
 setup(cmdclass={'spa': spa, 'install': install, 'test': test},
-      name='UberSelection',
+      name='PowershellUtils',
       version='0.1',
       description='Commands to extend the multiselection functionality.',
       author='Guillermo López-Anglada',
