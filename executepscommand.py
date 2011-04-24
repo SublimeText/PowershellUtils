@@ -39,54 +39,54 @@ class CantAccessScriptFileError(Exception):
     pass
 
 
-def regionsToPoShArray(view, rgs):
+def regions_to_posh_array(view, rgs):
     """
     Return a PoSh array: 'x', 'y', 'z' ... and escape single quotes like
     this : 'escaped ''sinqle quoted text'''
     """
     return ",".join("'%s'" % view.substr(r).replace("'", "''") for r in rgs)
 
-def getOutputs():
+def get_outputs():
     tree = ElementTree()
-    tree.parse(getPathToOutputSink())
+    tree.parse(get_path_to_output_sink())
     return [el.text[:-1] for el in tree.findall("out")]
 
-def getThisPackageName():
+def get_this_package_name():
     """
     Name varies depending on the name of the folder containing this code.
     TODO: Is __name__ accurate in Sublime? __file__ doesn't seem to be.
     """
     return THIS_PACKAGE_NAME if not DEBUG else THIS_PACKAGE_DEV_NAME
 
-def getPathToPoShScript():
-    return sublimepath.rootAtPackagesDir(getThisPackageName(), POSH_SCRIPT_FILE_NAME)
+def get_path_to_posh_script():
+    return sublimepath.rootAtPackagesDir(get_this_package_name(), POSH_SCRIPT_FILE_NAME)
 
-def getPathToPoShHistoryDB():
-    return sublimepath.rootAtPackagesDir(getThisPackageName(), POSH_HISTORY_DB_NAME)
+def get_path_to_posh_history_db():
+    return sublimepath.rootAtPackagesDir(get_this_package_name(), POSH_HISTORY_DB_NAME)
 
-def getPathToOutputSink():
-    return sublimepath.rootAtPackagesDir(getThisPackageName(), OUTPUT_SINK_NAME)
+def get_path_to_output_sink():
+    return sublimepath.rootAtPackagesDir(get_this_package_name(), OUTPUT_SINK_NAME)
 
-def getPoShSavedHistory():
+def get_posh_saved_history():
     # If the command history file doesn't exist now, it will be created when
     # the user chooses to persist the current history for the first time.
     try:
-        with open(getPathToPoShHistoryDB(), 'r') as f:
+        with open(get_path_to_posh_history_db(), 'r') as f:
             return [command[:-1].decode('utf-8') for command in f.readlines()]
     except IOError:
         return []
 
-def getOEMCP():
+def get_oem_cp():
     # Windows OEM/Ansi codepage mismatch issue.
     # We need the OEM cp, because powershell is a console program.
     codepage = ctypes.windll.kernel32.GetOEMCP()
     return str(codepage)
 
-def buildScript(values, userPoShCmd):
-    with codecs.open(getPathToPoShScript(), 'w', 'utf_8_sig') as f:
-        f.write( PoSh_SCRIPT_TEMPLATE % (getPathToOutputSink(), values, userPoShCmd) )
+def build_script(values, userPoShCmd):
+    with codecs.open(get_path_to_posh_script(), 'w', 'utf_8_sig') as f:
+        f.write( PoSh_SCRIPT_TEMPLATE % (get_path_to_output_sink(), values, userPoShCmd) )
 
-def buildPoShCmdLine():
+def build_posh_cmd_line():
     return ["powershell",
                         "-noprofile",
                         "-nologo",
@@ -94,12 +94,12 @@ def buildPoShCmdLine():
                         # PoSh 2.0 lets you specify an ExecutionPolicy
                         # from the cmdline, but 1.0 doesn't.
                         "-executionpolicy", "remotesigned",
-                        "-file", getPathToPoShScript(), ]
+                        "-file", get_path_to_posh_script(), ]
 
-def filterThruPoSh(values, userPoShCmd):
+def filter_thru_posh(values, userPoShCmd):
 
     try:
-        buildScript(values, userPoShCmd)
+        build_script(values, userPoShCmd)
     except IOError:
         raise CantAccessScriptFileError
 
@@ -107,13 +107,13 @@ def filterThruPoSh(values, userPoShCmd):
     startupinfo = subprocess.STARTUPINFO()
     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
-    PoShOutput, PoShErrInfo = subprocess.Popen(buildPoShCmdLine(),
+    PoShOutput, PoShErrInfo = subprocess.Popen(build_posh_cmd_line(),
                                             stdout=subprocess.PIPE,
                                             stderr=subprocess.PIPE,
                                             startupinfo=startupinfo).communicate()
 
-    return ( PoShOutput.decode(getOEMCP()),
-             PoShErrInfo.decode(getOEMCP()), )
+    return ( PoShOutput.decode(get_oem_cp()),
+             PoShErrInfo.decode(get_oem_cp()), )
 
 
 class RunPowershell(sublime_plugin.TextCommand):
@@ -123,10 +123,10 @@ class RunPowershell(sublime_plugin.TextCommand):
     """
 
     PoSh_HISTORY_MAX_LENGTH = 50
-    PSHistory = getPoShSavedHistory()
+    PSHistory = get_posh_saved_history()
     lastFailedCommand = ""
 
-    def _addToPSHistory(self, command):
+    def _add_to_posh_history(self, command):
         # Comment out 'till the API is complete.
         #if not command in self.PSHistory:
         #    self.PSHistory.insert(0, command)
@@ -134,21 +134,21 @@ class RunPowershell(sublime_plugin.TextCommand):
         #    self.PSHistory.pop()
         pass
 
-    def _showPSHistory(self, view):
+    def _show_posh_history(self, view):
         sublime.error_message("Not implemented due to incomplete API.")
         # view.window().showQuickPanel('', "runExternalPSCommand", self.PSHistory,
         #                                 sublime.QUICK_PANEL_MONOSPACE_FONT)
 
-    def _parseIntrinsicCommands(self, userPoShCmd, view):
+    def _parse_intrinsic_commands(self, userPoShCmd, view):
         if userPoShCmd == '!h':
             if self.PSHistory:
-                self._showPSHistory(view)
+                self._show_posh_history(view)
             else:
                 sublime.status_message("Powershell command history is empty.")
             return True
         if userPoShCmd == '!mkh':
             try:
-                with open(getPathToPoShHistoryDB(), 'w') as f:
+                with open(get_path_to_posh_history_db(), 'w') as f:
                     cmds = [(cmd + '\n').encode('utf-8') for cmd in self.PSHistory]
                     f.writelines(cmds)
                     sublime.status_message("Powershell command history saved.")
@@ -158,21 +158,21 @@ class RunPowershell(sublime_plugin.TextCommand):
         else:
             return False
 
-    def run(self, edit, initial_text='', operation=''):
-        if operation:
-            self.onDone(self.view, args[1])
+    def run(self, edit, initial_text='', command=''):
+        if command:
+            self.on_done(self.view, edit, command)
             return
 
         # Open cmd line.
         initialText = initial_text or self.lastFailedCommand
-        inputPanel = self.view.window().show_input_panel("PoSh cmd:", initialText, functools.partial(self.onDone, self.view, edit), None, None)
+        inputPanel = self.view.window().show_input_panel("PoSh cmd:", initialText, functools.partial(self.on_done, self.view, edit), None, None)
 
-    def onDone(self, view, edit, userPoShCmd):
+    def on_done(self, view, edit, userPoShCmd):
         # Exit if user doesn't actually want to filter anything.
-        if self._parseIntrinsicCommands(userPoShCmd, view): return
+        if self._parse_intrinsic_commands(userPoShCmd, view): return
 
         try:
-            PoShOutput, PoShErrInfo = filterThruPoSh(regionsToPoShArray(view, view.sel()), userPoShCmd)
+            PoShOutput, PoShErrInfo = filter_thru_posh(regions_to_posh_array(view, view.sel()), userPoShCmd)
         except EnvironmentError, e:
             sublime.error_message("Windows error. Possible causes:\n\n" +
                                   "* Is Powershell in your %PATH%?\n" +
@@ -192,8 +192,8 @@ class RunPowershell(sublime_plugin.TextCommand):
             return
         else:
             self.lastFailedCommand = ''
-            self._addToPSHistory(userPoShCmd)
+            self._add_to_posh_history(userPoShCmd)
             # Cannot do zip(regs, outputs) because view.sel() maintains
             # regions up-to-date if any of them changes.
-            for i, txt in enumerate(getOutputs()):
+            for i, txt in enumerate(get_outputs()):
                 view.replace(edit, view.sel()[i], txt)
