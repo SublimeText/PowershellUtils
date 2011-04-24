@@ -6,10 +6,12 @@ import ctypes
 import tempfile
 import functools
 from xml.etree.ElementTree import ElementTree
+import base64
 
 import sublime, sublime_plugin
 
 import sublimepath
+from sublime_lib.view import append
 
 # The PoSh pipeline provided by the user and the input values (regions)
 # are merged with this template.
@@ -116,6 +118,29 @@ def filter_thru_posh(values, userPoShCmd):
              PoShErrInfo.decode(get_oem_cp()), )
 
 
+def run_posh_command(cmd):
+    """Runs a command without taking into account Sublime regions for filtering.
+    Output should be output to console.
+    """
+    encoded_cmd = cmd
+    posh_cmdline = [
+        "powershell.exe",
+                        "-noprofile",
+                        "-noninteractive",
+                        "-nologo",
+                        "-sta",
+                        "-outputformat", "text",
+                        "-command", encoded_cmd
+    ]
+
+    out, error = subprocess.Popen(posh_cmdline,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE).communicate()
+    
+    return (out.decode(get_oem_cp()),
+            error.decode(get_oem_cp()),)
+
+
 class RunPowershell(sublime_plugin.TextCommand):
     """
     This plugin provides an interface to filter text through a Windows
@@ -130,7 +155,7 @@ class RunPowershell(sublime_plugin.TextCommand):
         # Comment out 'till the API is complete.
         #if not command in self.PSHistory:
         #    self.PSHistory.insert(0, command)
-        #if len(self.PSHistory) > self.PoSh_HISTORY_MAX_LENGTH:
+        #if len(self.PSHistory) > self.PowershellSh_HISTORY_MAX_LENGTH:
         #    self.PSHistory.pop()
         pass
 
@@ -158,18 +183,29 @@ class RunPowershell(sublime_plugin.TextCommand):
         else:
             return False
 
-    def run(self, edit, initial_text='', command=''):
+    def run(self, edit, initial_text='', command='', as_filter=True):
         if command:
-            self.on_done(self.view, edit, command)
+            self.on_done(self.view, edit, command, as_filter)
             return
 
         # Open cmd line.
         initialText = initial_text or self.lastFailedCommand
         inputPanel = self.view.window().show_input_panel("PoSh cmd:", initialText, functools.partial(self.on_done, self.view, edit), None, None)
 
-    def on_done(self, view, edit, userPoShCmd):
+    def on_done(self, view, edit, userPoShCmd, as_filter=True):
         # Exit if user doesn't actually want to filter anything.
         if self._parse_intrinsic_commands(userPoShCmd, view): return
+
+        # Run command, don't modify the buffer, output to output panel.
+        if not as_filter:
+            self.output_view = self.view.window().new_file()
+            self.output_view.set_scratch(True)
+            self.output_view.set_name("Powershell - Output")
+            out, error = run_posh_command(userPoShCmd)
+            if out or error:
+                if out: append(self.output_view, out)
+                if error: append(self.output_view, error)
+            return
 
         try:
             PoShOutput, PoShErrInfo = filter_thru_posh(regions_to_posh_array(view, view.sel()), userPoShCmd)
