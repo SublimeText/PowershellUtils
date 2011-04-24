@@ -20,6 +20,10 @@ Bear in mind, though, that Windows Powershell is a powerful languange and needs 
 Getting started
 ***************
 
+* Download and install the `latest release`_ of PowershellUtils.
+
+.. _latest release: https://bitbucket.org/guillermooo/powershellutils/downloads/PowershellUtils.sublime-package
+
 You need to define a keybinding for the command ``runExternalPSCommand`` or run it from the console like so: ``view.runCommand("runExternalPSCommand")``.
 
 Usage
