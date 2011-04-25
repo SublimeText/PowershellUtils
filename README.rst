@@ -1,53 +1,64 @@
-
+========================================
 PowershellUtils package for Sublime Text
 ========================================
 
-This plugin provides an interface to filter text through a Windows Powershell pipeline.
+This plugin provides an interface to filter buffer text through a Windows
+Powershell pipeline and run and capture Powershell commands.
 
 Requirements
-************
+============
 
-- **Windows Powershell v2.**
-  Windows Powershell v2 is preinstalled in Windows 7 and later and it's available for previous versions of Windows too under the name `Windows Management Framework`.
+**Windows Powershell v2**
 
-Side effects
-************
+Windows Powershell v2 is preinstalled in Windows 7 and later and it's available
+for previous versions of Windows too under the name `Windows Management Framework`.
 
-This plugin shouldn't have any side effects unless you execute it explicitly. Particulartly, it doesn't define any keybindings or react to events.
+Powershell is a powerful languange and needs to be used carefully to avoid
+undesired effects.
 
-Bear in mind, though, that Windows Powershell is a powerful languange and needs to be used carefully to avoid undesired effects.
+Getting Started
+===============
 
-Getting started
-***************
+* Install `PowershellUtils`_.
 
-* Download and install the `latest release`_ of PowershellUtils.
+.. _PowershellUtils: https://bitbucket.org/guillermooo/powershellutils/downloads/PowershellUtils.sublime-package
 
-.. _latest release: https://bitbucket.org/guillermooo/powershellutils/downloads/PowershellUtils.sublime-package
+If you're running a full installation, simply double click on the ``.sublime-package`` files.
+If you're running a portable installation, perform an `installation by hand`_.
 
-You need to define a keybinding for the command ``runExternalPSCommand`` or run it from the console like so: ``view.runCommand("runExternalPSCommand")``.
+.. _installation by hand: http://sublimetext.info/docs/extensibility/packages.html#installation-of-packages-with-sublime-package-archives
 
-Usage
-*****
+Lastly, run ``run_powershell`` from the Python console or bind this command to
+a key combination::
+
+   # In Sublime's Python console.
+   view.run_command("sublime_cmd")
+
 
 Using The Windows Powershell Pipeline
--------------------------------------
+=====================================
 
-1. Execute ``runExternalPSCommand``
+1. Execute ``run_powershell``
 2. Type in your Windows Powershell command
-3. Press the enter key
+3. Press ``enter``
 
-All the currently selected regions in Sublime Text will be piped into your command. You can access each of this regions in turn through the ``$_`` automatic variable.
+All the currently selected regions in Sublime Text will be piped into your
+command sequencially. In turn, you can access each of this regions through the
+``$_`` automatic variable.
 
 Roughly, this is what goes on behind the scenes::
 
     reg1..regN | <your command> | out-string
 
-You can ignore the piped content and treat your command as the start point of the pipeline.
+You can ignore the piped content and treat your command as the start point of
+the pipeline.
 
 The generated output will be inserted into each region in turn.
 
-Using the intrinsic commands
-----------------------------
+Using Intrinsic Commands
+------------------------
+
+(Not all intrinsic commands work.)
 
 The following commands have a special meaning for this plugin:
 
@@ -57,7 +68,7 @@ The following commands have a special meaning for this plugin:
         Brings up the history of commands so you can choose one and run it again.
 
 Examples
-********
+--------
 
 ``$_.toupper()``
     Turns each region's content to all caps.
@@ -73,12 +84,24 @@ Examples
     Replaces each region's content with the enumerated week days.
 
 Caveats
-*******
+-------
 
-To start a Windows Powershell shell, do either ``Start-Process powershell`` or ``cmd /k start powershell``, but don't call Windows Powershell directly because it will be launched in windowless mode and will block Sublime Text forever. Should this happen to you, you can execute the following command from an actual Windows Powershell prompt to terminate all Windows Powershell processes except for the current session::
+To start a Windows Powershell shell, do either ``Start-Process powershell`` or
+``cmd /k start powershell``, but don't call Windows Powershell directly because
+it will be launched in windowless mode and will block Sublime Text forever.
+Should this happen to you, you can execute the following command from an actual
+Windows Powershell prompt to terminate all Windows Powershell processes except
+for the current session::
 
     Get-Process powershell | Where-Object { $_.Id -ne $PID } | Stop-Process
 
 Alternatively, you can use a shorter version::
 
     gps powershell|?{$_.id -ne $pid}|kill
+
+
+Other Ways of Using PowershellUtils
+===================================
+
+PowershellUtils can be called with arguments so that the *prompt* is bypassed.
+This is interesting if you want to integrate powershell with a separate plugin.
