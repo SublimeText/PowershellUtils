@@ -19,9 +19,11 @@ undesired effects.
 Getting Started
 ===============
 
-* Install `PowershellUtils`_.
+* Install `PowershellUtils`_
+* Install `AAAPackageDev`_ (dependency)
 
 .. _PowershellUtils: https://bitbucket.org/guillermooo/powershellutils/downloads/PowershellUtils.sublime-package
+.. _AAAPackageDev: https://bitbucket.org/guillermooo/aaapackagedev/downloads/AAAPackageDev.sublime-package
 
 If you're running a full installation, simply double click on the ``.sublime-package`` files.
 If you're running a portable installation, perform an `installation by hand`_.
